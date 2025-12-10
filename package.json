@@ -1,0 +1,69 @@
+{
+  "name": "node-js-getting-started",
+  "private": true,
+  "description": "A sample Node.js app using Express",
+  "engines": {
+    "node": "18.x || 20.x || 22.x"
+  },
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@adminjs/express": "^6.1.1",
+    "@langchain/community": "^1.0.5",
+    "@langchain/core": "^1.1.0",
+    "@langchain/openai": "^1.1.3",
+    "@langchain/redis": "^1.0.1",
+    "@langchain/textsplitters": "^1.0.1",
+    "adminjs": "^7.6.1",
+    "axios": "^1.8.4",
+    "cheerio": "^1.1.2",
+    "cluster": "^0.7.7",
+    "connect-timeout": "^1.9.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-async-handler": "^1.2.0",
+    "fs": "^0.0.1-security",
+    "google-auth-library": "^9.15.1",
+    "google-spreadsheet": "^4.1.4",
+    "googleapis": "^148.0.0",
+    "html-to-text": "^9.0.5",
+    "http": "^0.0.1-security",
+    "https": "^1.0.0",
+    "ioredis": "^5.6.0",
+    "jsdom": "^27.3.0",
+    "langchain": "^1.1.1",
+    "node-fetch": "^2.7.0",
+    "openai": "^4.91.1",
+    "path": "^0.12.7",
+    "pdf-parse": "^1.1.1",
+    "pdfreader": "^3.0.8",
+    "pg": "^8.16.3",
+    "process": "^0.11.10",
+    "promise": "^8.3.0",
+    "redis": "^4.7.1",
+    "redis-json": "^6.0.3",
+    "request": "^2.88.2",
+    "string-similarity": "^4.0.4",
+    "url": "^0.11.4",
+    "url-parse": "^1.5.10"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heroku/node-js-getting-started"
+  },
+  "keywords": [
+    "node",
+    "heroku",
+    "express"
+  ],
+  "license": "MIT"
+}
