@@ -3,7 +3,7 @@ Pasos para construir un RAG usando langchain, open ai con redis
 
 Armando de Indices:
 
-1.- Uando IA para generar la clasificacion a travez de documentos de texto*;
+1.- Usando IA para generar la clasificacion a travez de documentos de texto*;
      - Genera un Archivo JSON que se usa para generar los indices
      * Pendiente desde HTML, URL
       
