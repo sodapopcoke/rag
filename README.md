@@ -1,4 +1,12 @@
 # node-js OPEN AI AND LANGCHAIN
+El proposito de este desarrollo es crear un agente de ventas, tomando en cuenta los siguientes puntos:
+
+**Deberia poder generar fluos de conversacion usando vibecode**
+
+**Usar un crawler para poder acceder a los sitios y crear la base de conocimiento**
+
+**Usar la IA para despachar a los clientes**
+
 Pasos para construir un RAG usando langchain, open ai con redis
 
 Armando de Indices:
@@ -192,10 +200,14 @@ Armando de Indices:
 
 6.- Por hacer : 
 
-  1.-Separar toda la configuracion en JSON, 
+  1.-Separar toda la configuracion en JSON
+
   2.-Clasificar y comparar con el archivo CSV de productos
+  
   3.-Que el leector de Codigo de barras lea desde whatss para agregar un producto o compararlo y subir stock CSV
+  
   4.-Mejoraras del flujo - timer - auto respuesta si tarda mucho, webhook
+  
   5.- Probar en con Vibe Code para generar flujos
 
 
