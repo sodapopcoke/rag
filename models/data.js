@@ -16,34 +16,57 @@ var stringSimilarity = require("string-similarity");
 
 const { JSDOM } = require('jsdom');
 
-
 const { PDFLoader } = require("@langchain/community/document_loaders/fs/pdf");
 
 
-const { convert } = require('html-to-text');
 
+const { convert } = require('html-to-text');
 
 const https = require("https");
 
 const fsPromises = require('fs').promises;
 
-
+const cheerio = require('cheerio');
 
 var fs = require("fs");
 
 const { writeFile } = require("fs/promises");
 
-
-
+const { setTimeout } = require('timers/promises');
 
 var request = require('request');
 
 const vector = require('../models/lang');
 
+const webdriver = require('selenium-webdriver');
+
+const { By, Key, until } = require('selenium-webdriver');
+
+const chrome = require('selenium-webdriver/chrome');
+
+const Quagga = require('@ericblade/quagga2');
+
+const {createDelay} = require('delay');
+
+const customDelay = createDelay({clearTimeout, setTimeout});
+
+let options = new chrome.Options();
+//Below arguments are critical for Heroku deployment
+options.addArguments("--incognito");
+options.addArguments("--headless");
+options.addArguments("--disable-gpu");
+options.addArguments("--disable-dev-shm-usage");
+options.addArguments("--disable-extensions");
+options.addArguments("--no-sandbox");
+
+let driver = new webdriver.Builder()
+  .forBrowser('chrome')
+  .setChromeOptions(options)
+  .build();
 
 const client = redis.createClient({
   username: 'default',
-  password: '6CiJt4sC4gpUTNjiAfMU3bIaXilqYk9A',
+  password: 'KEY',
   socket: {
     host: 'redis-10657.c74.us-east-1-4.ec2.redns.redis-cloud.com',
     port: 10657,
@@ -51,71 +74,261 @@ const client = redis.createClient({
   }
 });
 
-
-
 const { reject } = require('promise');
 const OpenAI = require("openai");
 const { getDefaultAutoSelectFamilyAttemptTimeout } = require('net');
+const { deserialize } = require('v8');
 
 const deepseek = new OpenAI({
   baseURL: 'https://api.deepseek.com',
-  apiKey: 'sk-d8be980a6ae548bbb2716b40bd164c8f'
+  apiKey: 'KEY'
 });
 
-const openai = new OpenAI({ apiKey: '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' });
+const openai = new OpenAI({ apiKey: 'KEY' });
+
+
+
 
 
 const web = async (data) => {
   let response = {};
 
-  if (data.type == 'input') {
-    response = await input(data.id, data.message, 'web');
-
-  }
-
-  if (data.type == 'output') {
-
-    response = await output(data.id, data.message, 'web');
-  }
+  response = await input(data.id, data.message, 'web');
 
   return response;
 
-
 }
-
 
 const input = async (id, message, system) => {
 
   let state = await getState(id);
 
+  let type = "text";
 
-  let about = await determine(message);
+  let context = await node(state.node);
 
-  let context = await node(about.node);
+  let request = '';
 
-  await history(message, context);
+  let lastVariables = state.variables;
 
-  let agentMessage = context;
+  let toVariable = {};
 
-  //let agentMessage = await AI(context);
-  //let next = await decision(agentMessage);
+  let validate = false;
 
-  //await setState(next.id,next.node);
-  //et out = await output(id, agentMessage, system);
+  let variable = '';
 
-  return context;
+  let next = 0;
+
+  let value = 0;
+
+  let validations = context.input;
+
+  let decision = [];
+
+  let messageAgent = "fuera de servicio 😔";
+
+  let url = "https://www.google.com";
+
+  let prom = [];
+
+  let nextNode = [];
+
+  let delaytime = false;
+
+  let tries = false;
+
+
+  if (message == 'limpiar' || message == 'Limpiar' || message == 'borrar' || message=='Borrar') {
+
+    let fresh = await clear(id);
+ 
+    messageAgent = "🧹 limpiando conversacion ";
+
+  } else {
+
+    for (val of validations) {
+
+      prom.push(
+        determine(message, val.type, val.node, val.variable, val.value, val.request,id).then((result) => { return result; })
+      );
+
+    }
+
+
+    decision = await Promise.all(prom).then((p) => {
+      return p;
+
+    });
+
+
+    for (dcn of decision) {
+      validate = dcn.answer;
+      next = dcn.next;
+      variable = dcn.variable;
+      request = dcn.request;
+      delaytime = dcn.delaytime;
+      tries = dcn.tries;
+    }
+
+ 
+
+    if (validate == true || validate =='true') {
+
+  
+      value = context.input[0];
+
+      context = await node(next);
+
+
+      toVariable = { "variable": variable, "value": message };
+      lastVariables.push(toVariable);
+
+      op = { "node": context.node, "variables": lastVariables };
+      let currentString = JSON.stringify(op);
+      let resultMem = await setState(id, currentString);
+
+    } else {
+
+      context = await contrast(next);
+
+    }
+
+
+    if(request=='default'){
+      messageAgent = context.content;
+    }else if(request=='search'){
+      
+      let contextSearch = await contextFlow(id);
+      messageAgent = context.content +': \n '+contextSearch +'\n ¿ cual y cuantos de llevas ?';
+      
+    }else if(request=='tries'){
+
+       console.log('VALIDATE:');
+       console.log(validate);
+
+       if(validate == true || validate =='true'){
+       messageAgent = context.content;
+       }else{
+       messageAgent = context.contrast; 
+       } 
+    }
+
+    type = context.type;
+
+    url = context.url;
+
+    if(1==2){
+
+    lastVariables.forEach(m => {
+
+      toFind = '{{' + m.variable + '}}';
+      toReplace = m.value;
+     
+      if(messageAgent){
+        messageAgent = messageAgent.replaceAll(toFind, toReplace);
+      }
+
+    });
+
+    }
+
+
+
+
+  }
+
+
+
+  if (system == "whatss" && type == "text") {
+
+    result = await whatss(id, messageAgent);
+
+
+  } else if (system == "whatss" && type == "image") {
+
+    await imageWhatss(id, 'kof', url);
+
+    await setTimeout(1000);
+
+    await whatss(id, messageAgent);
+
+
+  } else {
+
+    let result = {
+      "id": "KOF",
+      "message": messageAgent
+    }
+
+    return result;
+
+  }
+
+
 }
 
 
+const contextFlow = async (id) =>{
+
+  let dataText = '';
+
+  let context = await memory('search',id);
+ 
+ 
+   context.forEach((cont)=>{
+
+     dataText = cont.content +'\n'+ dataText;
+
+   });
+
+
+   return dataText;
+
+}
+
+
+const pass = async (node, message, lastVariables) => {
+
+  let context = await node(node);
+  console.log('PASS');
+  messageAgent = context.content;
+  type = context.type;
+  console.log(message);
+  lastVariables.forEach(m => {
+
+    toFind = '{{' + m.variable + '}}';
+    toReplace = m.value;
+    console.log('TO REPLACE');
+    messageAgent = messageAgent.replaceAll(toFind, toReplace);
+
+  });
+
+  return messageAgent;
+
+}
+
+const clear = async (id) => {
+
+  if (!client.isOpen) {
+    await client.connect();
+  }
+  await client.del('-state:' + id);
+  await client.del('-history:' + id);
+  await client.del('-search:' + id);
+
+  return true;
+
+}
+
 const history = async (message, context) => {
+
 
   let user_message = {
     "role": "user",
     "content": message
   };
+
 }
-
-
 
 const output = async (id, message, data, system) => {
 
@@ -131,7 +344,6 @@ const output = async (id, message, data, system) => {
   }
 
 }
-
 
 const outWhatss = async (number, message, file = '') => {
 
@@ -150,16 +362,17 @@ const outWhatss = async (number, message, file = '') => {
 
 }
 
-
 const getState = async (id) => {
 
 
   let state = await memory('state', id);
 
-  if (state.length == 0 || state.length == undefined) {
 
 
-    state = { node: 0 };
+  if (!Object.keys(state).length) {
+
+
+    state = { node: 0, variables: [{ variable: "default", value: 1 }] };
 
     let stringState = JSON.stringify(state);
 
@@ -167,10 +380,10 @@ const getState = async (id) => {
 
   }
 
+
   return state;
 
 }
-
 
 const setState = async (id, state) => {
 
@@ -180,7 +393,7 @@ const setState = async (id, state) => {
   if (state.length == 0 || state.length == undefined) {
 
 
-    state = { node: 1 };
+    state = { node: 0 };
 
     await memory('state', id, state)
 
@@ -190,111 +403,689 @@ const setState = async (id, state) => {
 
 }
 
-
 const getVariable = async () => {
 
-
 }
-
-
 
 const setVariable = async (data) => {
 
+}
 
+const determine = async (message, apply_rule, nextNode, variable, value,request,id) => {
+
+  let sample = [];
+  let originalMessage = message;
+  let rm = 0;
+  answer = '👌';
+  let rmx = /^[1-5]$/;
+  let next = 0;
+  let val = value;
+  let delaytime = false;
+  let tries = false;
+
+
+  message = message.normalize('NFD').replace(/([aeio])\u0301|(u)[\u0301\u0308]/gi, "$1$2").normalize();
+  message = message.toLowerCase();
+  message = message.trimStart();
+
+  if (apply_rule == undefined) {
+    apply_rule = 'ANY';
+  }
+
+
+  if (apply_rule == 'bool') {
+
+    if (message == 'si' || message == 'Si' || message == 'SI') {
+
+      answer = true
+
+    } else {
+      answer = false;
+    }
+
+
+    if (answer == true) {
+
+      for (n of nextNode) {
+        if (n.value == 'si') {
+          answer = true;
+          next = n.node;
+        }
+      }
+    } else {
+
+      for (n of nextNode) {
+
+
+        answer = false;
+        next = n.try_node;
+
+      }
+
+    }
+
+
+
+  } else if (apply_rule == 'fullname') {
+
+
+    message = message.replace('ñ', 'n');
+
+
+    message = message.replace('Ñ', 'Ñ');
+
+    const fullNameRegex = /^[a-zA-Z]+(?: [a-zA-Z]+)+$/;
+
+    answer = fullNameRegex.test(message);
+
+
+
+    if (answer == true) {
+      for (n of nextNode) {
+
+        console.log('is...next ' + n.node + '--' + n.value);
+        console.log(typeof message);
+
+        if (n.value == 'string') {
+
+          next = n.node;
+
+        }
+      }
+    } else {
+
+      for (n of nextNode) {
+
+
+
+        if (n.value == 'string') {
+
+          next = n.try_node;
+
+        }
+
+
+      }
+    }
+
+
+
+  } else if (apply_rule == 'number_10') {
+
+    var pattern = new RegExp("^[0-9]{10}$");
+    answer = pattern.test(message);
+
+
+  } else if (apply_rule == 'number_1') {
+
+    var pattern = new RegExp("^[0-9]{1}$");
+    answer = pattern.test(message);
+
+
+  } else if (apply_rule == 'email') {
+
+    rxm = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    answer = rxm.test(message);
+
+
+    if (answer == true) {
+      for (n of nextNode) {
+
+        console.log('is...next ' + n.node + '--' + n.value);
+        console.log(typeof message);
+
+        if (n.value == 'string') {
+
+          next = n.node;
+
+        }
+      }
+    } else {
+
+      for (n of nextNode) {
+
+        console.log('is...next ' + n.node + '--' + n.value);
+        console.log(typeof message);
+
+
+
+        next = n.try_node;
+
+
+      }
+
+
+    }
+
+
+
+  } else if (apply_rule == 'event') {
+
+    var regexdate = /^(?:enero|february|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre),\s*(?:\d{1,2}),\s*(?:1[0-2]|0?[1-9])(?::[0-5]\d)?\s*(?:AM|PM)$/i;
+
+    let dateformat = regexdate.test(message);
+
+    answer = dateformat;
+
+
+  } else if (apply_rule == 'random_1_2') {
+
+    message = parseInt(message);
+
+    rmx = /^[1-2]$/;
+
+
+
+    answer = rmx.test(message);
+
+    if (answer == true) {
+      for (n of nextNode) {
+        if (n.value == message) {
+
+          if (message == 1) {
+
+
+          }
+
+          if (rm > 1) {
+            next = n.node;
+          }
+        }
+      }
+    } else {
+
+
+      for (n of nextNode) {
+
+
+
+        next = n.try_node;
+
+      }
+
+
+
+    }
+
+  } else if (apply_rule == 'between_1_2') {
+
+    message = parseInt(message);
+
+    rmx = /^[1-2]$/;
+
+
+    answer = rmx.test(message);
+
+    if (answer == true) {
+      for (n of nextNode) {
+        if (n.value == message) {
+
+          next = n.node;
+
+        }
+      }
+    } else {
+
+      console.log('FALSE');
+      for (n of nextNode) {
+
+
+        next = n.try_node;
+
+
+
+
+      }
+
+
+    }
+
+
+
+  } else if (apply_rule == 'between_1_3') {
+
+    message = parseInt(message);
+
+    rmx = /^[1-3]$/;
+
+    answer = rmx.test(message);
+
+    if (answer == true) {
+      for (n of nextNode) {
+        if (n.value == message) {
+          next = n.node;
+        }
+      }
+    } else {
+
+      for (n of nextNode) {
+
+        next = n.try_node;
+
+      }
+
+
+    }
+
+
+
+  } else if (apply_rule == 'between_1_4') {
+
+    message = parseInt(message);
+
+    rmx = /^[1-4]$/;
+
+    answer = rmx.test(message);
+
+    if (answer == true) {
+      for (n of nextNode) {
+        if (n.value == message) {
+          next = n.node;
+        }
+      }
+    } else {
+
+      for (n of nextNode) {
+
+        next = n.try_node;
+
+      }
+
+
+    }
+
+
+  } else if (apply_rule == 'comparation') {
+
+
+    comparation = stringSimilarity.compareTwoStrings(message, 'TEXTO');
+
+    answer = true;
+
+  } else if (apply_rule == 'curp') {
+
+    console.log(originalMessage);
+
+
+    rmx = /([A-Z]{4}([0-9]{2})(0[1-9]|1[0-2])(0[1-9]|1[0-9]|2[0-9]|3[0-1])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS|NE)[A-Z]{3}[0-9A-Z]\d)/;
+    answer = rmx.test(originalMessage);
+
+    console.log('IS CURP');
+    console.log(answer);
+
+
+    if (answer == true) {
+      for (n of nextNode) {
+        if (n.value == 'string') {
+          next = n.node;
+        }
+      }
+    } else {
+
+      console.log('TRY');
+
+      for (n of nextNode) {
+
+        next = n.try_node;
+
+      }
+
+    }
+
+
+
+
+  } else if (apply_rule == 'rfc') {
+
+    rmx = /^([A-ZÑ&]{3,4}) ?(?:- ?)?(\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])) ?(?:- ?)?([A-Z\d]{2})([A\d])$/;
+
+    answer = rmx.test(originalMessage);
+
+    answer = true;
+
+  } else if (apply_rule == 'any') {
+
+    answer = true;
+
+  } else if (apply_rule == 'code') {
+
+    for (n of nextNode) {
+      if (n.value == 'listo' && n.node == 12) {
+        answer = true;
+        next = n.node;
+      } else {
+
+        answer = false;
+        next = n.try_node;
+      }
+
+    }
+
+  } else if (apply_rule == 'image') {
+
+
+
+    console.log(message);
+
+    answer = true;
+
+  } else if (apply_rule == 'greeting') {
+
+
+
+    sample[1] = 'hola que hay';
+
+    sample[2] = 'saludos';
+
+    sample[3] = 'estoy interesado en';
+
+    sample[4] = 'quiero saber como';
+
+    sample[5] = 'necesito que me';
+
+    sample[6] = 'buen dia';
+
+    sample[6] = 'buenas tardes';
+
+    sample[7] = 'me ayuda con ';
+
+    sample[8] = 'buenas';
+
+    sample[9] = 'hola';
+
+    sample[10] = 'hey';
+
+    score = ponderation(message, sample);
+
+    if (score > 0.8) {
+      for (n of nextNode) {
+        if (n.value == 1) {
+          next = n.node;
+        }
+      }
+      console.log('ES UN SALUDO: ' + score);
+      answer = true;
+    } else {
+      console.log('NO ES UN SALUDO: ' + score);
+      answer = false;
+      next = 0;
+    }
+
+
+
+
+
+  } else if (apply_rule == 'next') {
+
+    answer = true;
+
+    for (n of nextNode) {
+      if (n.value == 1) {
+        next = n.node;
+      }
+    }
+
+  } else if (apply_rule == 'ai') {
+
+    answer = false;
+    answer = await contextAI(message,id);
+    tries = true;
+    request = 'tries';
+    if (answer == 'true') {
+      for (n of nextNode) {
+        if (n.value == 1) {
+          next = n.node;
+        }
+      }
+    }
+
+  } else if (apply_rule == 'search') {
+
+    answer = false;
+    answer = await searchAI(message,id);
+    request = 'search';
+    delaytime = true;
+    if (answer == true) {
+      for (n of nextNode) {
+        if (n.value == 1) {
+          next = n.node;
+        }
+      }
+    }
+
+  } else if (apply_rule == 'delay') {
+
+    answer = true;
+    delaytime = true;
+    request = 'default';
+    if (answer == true) {
+      for (n of nextNode) {
+        if (n.value == 1) {
+          next = n.node;
+        }
+      }
+    }
+
+  } else {
+    message = answer
+    answer = false;
+    for (n of nextNode) {
+      next = n.try_node;
+    }
+  }
+
+  return {
+    answer: answer, next: next, variable: variable, value: message, request: request, delaytime: delaytime
+  };
+}
+
+
+const searchAI = async (message,id) => {
+
+  let status = false;
+
+  let toSearch = {search:message,score:'3',filter:'producto'};
+
+  let dataFiles = await vector.similarity(toSearch);
+
+  let dataStore =[];
+
+   dataFiles.forEach((file)=>{
+
+   let prod= {
+      "role": "system",
+      "content": file.metadata.id
+    }
+
+    dataStore.push(prod);
+
+  });
+
+ 
+  console.log(dataStore);
+
+  if(dataFiles.length!=0){
+
+    let saveFile =await memory('search',id,dataStore);
+
+    status = true;
+  }
+
+
+  console.log(status);
+
+  return status;
 
 
 }
 
 
+const contextAI = async (message,id) => {
+
+  let decision = false;
+
+  dataFiles = await memory('search',id);
 
 
-
-const determine = async (request) => {
-
-
-  request = await normalize(request);
-
-  let determination = [
+  let context = [
     {
       "role": "system",
       "content": "Operational parameters"
     },
     {
       "role": "system",
-      "content": "You are an AI agent in spanish language.Your job is classify user request and resume user's request."
+      "content": "You are an AI agent in spanish language.Your job is determine and complete shop list, verify and check product name and quantity products that user add to shop list."
     },
     {
       "role": "system",
       "content": "Rules"
+    }, 
+    {
+      "role": "system",
+      "content": "-AI *important* use this common spanish words when you only show one product then user use  to add product to shop list quantity to shop list like :'llevo 5','quiero 5','necesito solo 4','dame 6','nada mas 3','agrega 5' or spanish number like 'tres' or number '3'  "
     },
     {
       "role": "system",
-      "content": "*important* for all responses to user send like format: {'classification':'greeting','value':'hola','node':0}"
+      "content": "-AI *important* use this common spanish words when user add one or multimple products to shop list quantity to shop list like :'llevo 5 del paquete ...','quiero 5 de ...','solo 6 del ...','dame 6 del ...','tambien quiero 5 del ...','agrega 5 del ...','y tambien serian 5 de ...'.  "
     },
     {
       "role": "system",
-      "content": "*AI For user request like a greetings or start a conversation politely then classification is 'greeting', value is 'hola' and node is '0'."
+      "content": "-AI *very important* for *every response to user* send shop list like this format: {'answer':'true','shop_list':[{'product_id':'product name b','qty':1},{'product_id':'product name b','qty':3}]}"
+    },
+        {
+      "role": "system",
+      "content": "-AI *important* If the user does not respond to add a product or is out of context then send like format : {'answer':'false','shop_list':'none''}"
     },
     {
       "role": "system",
-      "content": "*AI For user request like about product features and general information then classification is 'product', value is product name o short product description and node is '1'."
-    },
-    {
-      "role": "system",
-      "content": "*AI For user request like about need know product price then classification is 'price' value is name or model of product and node is '2'."
-    },
-    {
-      "role": "system",
-      "content": "*AI For user request like about he need buy product then classification is 'buy' value is name or model of product and node is '3'."
-    },
-
-    {
-      "role": "system",
-      "content": "*AI For user request like to end conversation or say godbye  then classification is 'end' vale is '1' of  node is '8'."
-    },
-
-    {
-      "role": "system",
-      "content": "*AI For user request like email then classification is 'add' value is email of  and node is '7'."
-    },
-
-    {
-      "role": "system",
-      "content": "*AI For user request not has previous classifications then classification is 'unknow' value is resume of his request, and node is '5'."
+      "content": "Begin the conversation:"
     },
     {
       "role": "user",
-      "content": request
+      "content": "¿que productos tienes?"
+    },
+    {
+      "role": "system",
+      "content": "tengo:"
     }];
 
+ dataFiles.forEach((item)=>{
+    context.push(item);
 
-  let result = await AI(determination);
+  });
 
-  stringResult = result.replaceAll("'", '"');
+  let agentRequest={};
 
-  let response = JSON.parse(stringResult);
+  if(dataFiles.length==1){
 
-  return response;
+  agentRequest = { 
+    "role":"assistant",
+    "content":" ¿ Cuantos deseas agregar ?",
+  };
+
+  }else{
+  agentRequest = { 
+    "role":"assistant",
+    "content":"¿ cual producto deseas agregar a tu lista de compra?",
+  };
+}
+
+   context.push(agentRequest);
+
+  
+   let userRequest =  {
+      "role": "user",
+      "content": message
+    };
+
+
+   context.push(userRequest);  
+
+
+  let responseAI = await AI(context);
+
+  let jsonResponse = responseAI.replaceAll("'",'"');
+
+  let dataResponse = JSON.parse(jsonResponse);
+
+  console.log('RESPONSE AI');
+  console.log(dataResponse);
+
+
+
+
+
+  return dataResponse.answer;
 
 
 }
 
+const randomatic = (min, max) => {
 
 
-
-
-
-
-
-const evaluate = async (state, values, message) => {
-
-
-
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min; // The maximum is inclusive and the minimum is inclusive
 
 
 
 }
 
+const ponderation = (comparation, list) => {
+
+
+  let calification_1 = 0;
+
+  let calification_2 = 0;
+
+  let calification_3 = 0;
+
+  let calification_4 = 0;
+
+  let calification_5 = 0;
+
+  let calification_6 = 0;
+
+  let calification_7 = 0;
+
+  let score = 0;
+
+  let summatory = 0;
+
+
+  calification_1 = stringSimilarity.compareTwoStrings(comparation, list[1]);
+
+  calification_2 = stringSimilarity.compareTwoStrings(comparation, list[2]);
+
+  calification_3 = stringSimilarity.compareTwoStrings(comparation, list[3]);
+
+  calification_4 = stringSimilarity.compareTwoStrings(comparation, list[4]);
+
+  calification_5 = stringSimilarity.compareTwoStrings(comparation, list[5]);
+
+  calification_6 = stringSimilarity.compareTwoStrings(comparation, list[6]);
+
+  calification_7 = stringSimilarity.compareTwoStrings(comparation, list[7]);
+
+
+  summatory = calification_1 + calification_2 + calification_3 + calification_4 + calification_5 + calification_6 + calification_7;
+
+
+
+  if (summatory >= 0.5) {
+    score = 1;
+
+  } else {
+    score = 0;
+  }
+
+
+
+  return score;
+
+
+}
 
 const retry = async (state, values) => {
 
@@ -338,60 +1129,14 @@ const base = async () => {
 
 }
 
-
-
-
-
-
 const node = async (value) => {
 
+  let messages = require('../flow.json');
 
 
-  let messages = [
-    {
-      "role": "assistant",//0
-      "content": "Bienvenido al la tienda demo SODA POP. ¿ Que producto estas buscando ?"
-    },
-    {
-      "role": "assistant",//1
-      "content": "tengo estos productos en inventario. ¿cual es el que te interesa? solo elije uno"
-    },
-    {
-      "role": "assistant",//2
-      "content": "si, de este producto su precio es "
-    },
-    {
-      "role": "assistant",//3
-      "content": "si, de este producto ¿que deseas conocer sus caracteristicas? "
-    },
-    {
-      "role": "assistant",//4
-      "content": "El producto que estas buscando no lo tengo en el inventario, te gustaria que cuando lo tuviera te avisara, si es eso favor de enviarme tu correo electronico."
-    },
+  //messages = JSON.parse(messages);
 
-    {
-      "role": "assistant",//5
-      "content": "ok , haz click en el siguiente enlace para comprar "
-    },
-
-    {
-      "role": "assistant",//6
-      "content": "Como calficas tu experiencia , envia de 1 para no me gusto a 5 si te gusto el servicio"
-    },
-
-    {
-      "role": "assistant",//7
-      "content": "listo ,!!! gracias por inscribirte ¡¡¡¡"
-    },
-
-    {
-      "role": "assistant",//7
-      "content": "!!! Gracias por usar los servicios de SODA POP !!!"
-    }
-
-
-
-  ];
+  //console.log(messages);
 
 
 
@@ -401,14 +1146,36 @@ const node = async (value) => {
 
 }
 
+const contrast = async (value) => {
+
+
+  let currentNode = await node(value);
+
+
+  let valueContrast = currentNode.contrast;
+
+   let valueContent = currentNode.content;
+
+
+  let toContrast = {
+    "role": "assistant",
+    "content": valueContent,
+    "contrast": valueContrast,
+    "type": "text"
+  };
+
+
+  return toContrast;
 
 
 
+}
 
 
-const classificationFiles = async (data) => {
 
-  let listFiles = data.listFiles;
+const classificationFile = async (data) => {
+
+  let file = data.file;
   //let listFiles = await memory('file','product');
 
   let messages = [
@@ -432,103 +1199,10 @@ const classificationFiles = async (data) => {
     { "role": "system", "content": "AI: determine wich is unity price of product to set in output." },
     { "role": "system", "content": "AI: determine wich is score use customer reviews for 5 stars as score 1 and thus for all reviews so score 0 for 0 stars reviews." },
     { "role": "system", "content": "AI: determine description of product for this use 'about of product' and resume this." },
-    { "role": "system", "content": "AI: *Important* for all respones to user send with this like format: {'id':'product_name','category':'category_one,category_two','price':100,'score':1,'tags':['tag1','tag2','tag3'],'description':'description'}." },
+    { "role": "system", "content": "AI: determine product options to buy like unitary, bundles, packets, promotions and list like: ['1 600 ml','250 ml','1 lt','bundle of 8']" },
+    { "role": "system", "content": "AI: *Important* for all respones to user send with this like format: {'id':'product_name','product_options':['option buy a','option buy b'],'category':'category_one,category_two','price':100,'score':1,'tags':['tag1','tag2','tag3'],'description':'description'}." },
 
 
-  ];
-
-
-  let contents = await toHTMLs(listFiles);
-
-  var textList = [];
-
-  var promises = [];
-
-  var currentMessage = [];
-
-  console.log('CONTENIDO');
-  console.log(contents);
-
-  //if(contents.length!=0 || contents != undefined) {
-
-  if (1 == 1) {
-
-    textList = new Promise((resolve, reject) => {
-
-
-      let resolution = [];
-
-      contents.forEach(value => {
-
-        currentMessage = messages;
-
-        let user_context = { "role": "user", "content": "<text product>" + value + "</text product>" }
-        currentMessage.push(user_context);
-
-
-        if (1 == 1) {
-          promises.push(
-            openai.chat.completions.create({
-              messages: currentMessage,
-              model: "gpt-5-nano"
-            }).then((response) => {
-
-              return response.choices[0].message.content
-
-            }))
-        }
-
-        currentMessage = [];
-
-
-
-      });
-
-
-      Promise.all(promises).then(function (d) {
-
-        resolve(d);
-      }).catch(_err => reject(_err));
-
-
-
-
-    });
-
-  }
-
-
-
-  return textList;
-
-}
-
-
-const classificationFile = async (data) => {
-
-  let file = data.file;
-  //let listFiles = await memory('file','product');
-
-  let messages = [
-    {
-      "role": "system",
-      "content": "Operational parameters"
-    },
-    {
-      "role": "system",
-      "content": "You are an AI agent in spanish language."
-    },
-    {
-      "role": "system",
-      "content": "Rules:"
-    },
-    { "role": "system", "content": "AI: from user request text or html determine product identification 'id' use product trademark and model to build this id like 'samsung-galaxy' ." },
-
-    { "role": "system", "content": "AI: from user request text determine product categories 'category' use list of categories ['office','home','personal','party','family','food','brevage','electronics','tool','hardware','out-door'] like 'home,family,electronics' ." },
-
-    { "role": "system", "content": "AI: from user request text determine product description 'product-description' from user text response." },
-
-    { "role": "system", "content": "AI: *Very Important* response to user only with this format: {'id':'product-id','category':'category-1,category-2','description':'product-description'} ,build this format with previous determinations as {'id':'cocacola-600ml','category':'personal,brevage','description':'Refresco xoca-cola 600 ml botella reciclable'}" },
   ];
 
   let content = '';
@@ -537,14 +1211,12 @@ const classificationFile = async (data) => {
     content = await toTXT(file);
 
   } else if (data.type == 'html') {
-    console.log('HTML');
+
     content = await toHTML(file);
   } else if (data.type == 'url') {
 
     content = await loadFile(data);
 
-    console.log('URL');
-    console.log(content);
   }
 
   var textClassification = '';
@@ -567,15 +1239,19 @@ const classificationFile = async (data) => {
   })
 
 
-  console.log('CLASSIFICATION');
-  console.log(textClassification);
+  textClassification = textClassification.replaceAll("'",'"');
 
+  let objClassification=JSON.parse(textClassification);
 
+  objClassification.file = file;
+
+  objClassification.content = content.replaceAll(/(\r\n|\n|\r)/gm, "");
+
+  await vector.loadData(objClassification);
 
   return textClassification;
 
 }
-
 
 const saveClassification = async (classifications) => {
 
@@ -605,7 +1281,6 @@ const saveClassification = async (classifications) => {
 
 }
 
-
 const normalize = async (message) => {
 
   message = message.normalize('NFD').replace(/([aeio])\u0301|(u)[\u0301\u0308]/gi, "$1$2").normalize();
@@ -615,8 +1290,6 @@ const normalize = async (message) => {
   return message;
 
 }
-
-
 
 const requestDeepAI = async (body) => {
   let jsonRequest = JSON.parse(body);
@@ -635,7 +1308,6 @@ const requestDeepAI = async (body) => {
   return { 'assitent': 'deepseek', 'response': bot_message, };
 }
 
-
 const requestOpenAI = async (body) => {
   let jsonRequest = JSON.parse(body);
   let message = jsonRequest.message;
@@ -652,19 +1324,121 @@ const requestOpenAI = async (body) => {
   return { 'assitent': 'openai', 'response': bot_message, };
 }
 
+const loadCSV = async (data) => {
+
+  let filePath = './public/shard.csv';
+
+  fs.writeFileSync(filePath, data);
+
+  return { "file": "save" };
+
+
+
+}
+
+const codeBar = async (req) => {
+
+
+ const filenames = req.files.map(file => file.filename);
+
+
+
+    const config = {
+      // Specify that we are decoding a single static image
+      inputStream: {
+        name: "jon",
+        type: "ImageStream", // Use NodeJS input stream type
+        // The size is important for image processing in Node environments
+        singleImageMode: true
+      },
+      // The source of the image, can be a local path or a data URL
+      src: './public/' + filenames[0],
+      decoder: {
+        // Specify the type of readers to use
+        readers: ["code_128_reader", "ean_reader", "upc_reader", "code_39_reader"],
+        // Attempt to locate the barcode within the image for better results
+        locate: true
+      },
+      // Set debug mode if needed (optional)
+      debug: {
+        drawBoundingBox: true,
+        drawScanline: true,
+        showCanvas: true,
+        showPatches: true
+      }
+    };
+
+    var codebarNumber='';
+    var codebarFormat='';
+
+    // Call the decodeSingle method
+   await Quagga.decodeSingle(config, function (result) {
+      if (result && result.codeResult) {
+
+
+        codebarNumber = result.codeResult.code;
+        codebarFormat = result.codeResult.format;
+
+      } else {
+
+         codebarNumber = 'none'
+         codebarFormat = 'none';
+        
+      }
+    });
+
+    return {code:codebarNumber, format: codebarFormat};
+  
+}
+
+const uploadFileOpenAI = async (data) => {
+
+
+  let filePath = './public/shard.csv';
+
+  fs.writeFileSync(filePath, data.source);
+
+
+  const vector_store = await client.vectorStores.create({   // Create vector store
+    name: "Support FAQ",
+  });
+
+  await client.vector_stores.files.upload_and_poll({         // Upload file
+    vector_store_id: vector_store.id,
+    file: fs.createReadStream("./public/shard.csv"),
+  });
+
+
+
+}
+
+const determineAI = async (determine, variable, value) => {
+
+
+  let messages = require('../determine.json');
+
+
+  let evaluation = await AI(messages);
+
+  return evaluation;
+
+}
 
 const AI = async (messages) => {
 
-  const completion = await openai.chat.completions.create({
+
+  let response = await openai.chat.completions.create({
     messages: messages,
     model: "gpt-5-nano"
-  });
+  }).then((response) => {
 
-  let bot_message = completion.choices[0].message.content;
+    return response.choices[0].message.content;
 
-  return bot_message;
+  })
+
+ 
+  return response;
 }
-
 
 const memory = async (type, number, data = null) => {
   let code = '+';
@@ -672,15 +1446,17 @@ const memory = async (type, number, data = null) => {
   let stringData = '{"empty":"true"}';
 
   if (type == 'state') {
-    code = 'state:';
+    code = '-state:';
   } else if (type == 'variable') {
-    code = 'variable:';
+    code = '-variable:';
   } else if (type == 'file') {
-    code = 'file:';
-  } else if (type == 'classification') {
-    code = 'classification:';
+    code = '-file:';
+  } else if (type == 'search') {
+    code = '-search:';
   } else if (type == 'history') {
-    code = 'history:';
+    code = '-history:';
+  } else if (type == 'try') {
+    code = '-try:';
   }
 
 
@@ -725,7 +1501,6 @@ const memory = async (type, number, data = null) => {
   return data;
 }
 
-
 const longMemory = async (number, role = '', message = '') => {
   let messages = [];
   if (!client.isOpen) {
@@ -743,8 +1518,6 @@ const longMemory = async (number, role = '', message = '') => {
   }
   return messages;
 }
-
-
 
 const shortMemory = async (number, role = '', message = '') => {
   let messages = [];
@@ -764,8 +1537,6 @@ const shortMemory = async (number, role = '', message = '') => {
   return messages;
 }
 
-
-
 const inputWhatss = async (dataMessage) => {
 
   let message = '';
@@ -780,9 +1551,9 @@ const inputWhatss = async (dataMessage) => {
   }
 
 
-  if (number == '5215538498907') {
+  if (number == '5215582492980') {
 
-    console.log('BROADCAST');
+  
 
     return { "response": "self" };
 
@@ -794,12 +1565,10 @@ const inputWhatss = async (dataMessage) => {
 
 }
 
-
-
 const whatss = async (number, message) => {
 
   var data = qs.stringify({
-    "token": "ksdex7ysfqmskxac",
+    "token": "KEY",
     "to": "+" + number,
     "body": message,
     "priority": 1,
@@ -830,13 +1599,54 @@ const whatss = async (number, message) => {
 
 }
 
+const imageWhatss = async (number, caption, file) => {
+
+  var data = qs.stringify({
+    "token": "KEY",
+    "to": "+" + number,
+    "image": file,
+    "caption": caption,
+    "caption": "",
+    "priority": "",
+    "referenceId": "",
+    "msgId": ""
+  });
+
+
+
+  var config = {
+    method: 'post',
+    url: 'https://api.ultramsg.com/instance110925/messages/image',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    data: data
+  };
+
+
+
+
+  let res = axios(config)
+    .then(function (response) {
+      //console.log(JSON.stringify(response.data));
+
+      return JSON.stringify(response.data);
+    })
+    .catch(function (error) {
+      console.log(error);
+    });
+
+
+
+
+}
 
 const fileWhatss = async (number, address, file) => {
 
 
 
   var data = qs.stringify({
-    "token": "ksdex7ysfqmskxac",
+    "token": "KEY",
     "to": "+" + number,
     "address": address,
     "filename": file,
@@ -859,7 +1669,6 @@ const fileWhatss = async (number, address, file) => {
     data: data
   };
 
-  console.log('LOAD....');
 
 
   let res = axios(config)
@@ -873,10 +1682,9 @@ const fileWhatss = async (number, address, file) => {
     });
 
 
-  console.log(res);
+  
 
 }
-
 
 const toHTMLs = async (listFiles = []) => {
 
@@ -924,9 +1732,13 @@ const toHTMLs = async (listFiles = []) => {
 
 const toHTML = async (file) => {
 
+
   let textHTML = await readHTML(file);
+
   let urlRegex = /(?:https?:\/\/|www\.)\S+|(?:\w+\.)+\w{2,3}(?:\/\S*)?/g;
+
   //let urlRegex = /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/[a-zA-Z0-9]+\.[^\s]{2,}|[a-zA-Z0-9]+\.[^\s]{2,})/g;
+
   textHTML = textHTML.replaceAll(urlRegex, 'link');
 
   return { text: textHTML };
@@ -935,75 +1747,131 @@ const toHTML = async (file) => {
 
 }
 
-
 const toTXT = async (file) => {
 
 
   let textTXT = await readTXT(file);
 
 
-  let urlRegex = /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/[a-zA-Z0-9]+\.[^\s]{2,}|[a-zA-Z0-9]+\.[^\s]{2,})/g;
 
-  textTXT = textTXT.replaceAll(urlRegex, 'link');
+
+
 
   return textTXT;
 
+
+
 }
 
+const saveLog = async (data) => {
+
+  let dataText = '';
+
+  if (typeof data === 'string') {
+    dataText = data;
+
+  } else {
+
+    dataText = JSON.stringify(data);
+
+  }
 
 
-const loadFile = async (data) => {
-
-  let files = [];
-
-  const httpsAgent = new https.Agent({ keepAlive: true });
-
-  const writer = fs.createWriteStream('./public/' + data.name + '.' + data.extension, { flags: 'w', encoding: 'utf-8' });
-
-  axios.defaults.httpsAgent = httpsAgent;
-
-  let pdf = 'stream';
-
+  let filePath = './public/log.txt';
 
   try {
 
-    if (1 == 2) {
-
-      const response = await axios({
-        url: data.url,
-        method: 'GET',
-        responseType: 'stream',
-        withCredentials: true
-      });
-
-      response.data.pipe(writer);
-
-      let files = await memory('file', data.type);
-
-      files.push(data.name);
-
-      await memory('file', data.type, files);
-
-      new Promise((resolve, reject) => {
-        writer.on('finish', resolve);
-        writer.on('error', reject);
-      });
-    }
-
-    var contents = await fsPromises.readFile('./public/' + data.name + '.' + data.extension, { encoding: 'utf8' });
+    fs.writeFileSync(filePath, data);
 
 
-    return { content: contents };
+
+  } catch (error) {
+    console.error("Error file:", error);
+
+
+  }
+
+}
+
+const loadFile = async (data) => {
+
+
+
+  let filePath = './public/sample.html';
+
+  try {
+    let response = await axios.get(data.url);
+    let corsHTML = response.data; // The HTML content as a string
+
+    corsHTML = corsHTML.replaceAll(/(?:https?|ftp):\/\/[\n\S]+/g, '');
+
+    const $ = cheerio.load(corsHTML);
+
+
+    $('script').remove();
+    $('style').remove();
+
+
+
+
+
+    const bodyText = $('body').text();
+    // Example: Get the inner HTML of the body tag
+    //let bodyContent = document.documentElement.getElementsByTagName('body')[0].innerHTML;
+
+    fs.writeFileSync(filePath, bodyText);
+
 
   } catch (error) {
     console.error("Error during file download:", error);
 
     fs.unlink('./public/error.txt', () => { });
     throw error;
+    console.error("Error loading the HTML file:", error);
   }
+
+
+
+  //var contents = await fsPromises.readFile('./public/' + data.name + '.' + data.extension, { encoding: 'utf8' });
+
+
+
+
+
 
 }
 
+const hour = async (job = 'default') => {
+
+  await saveLog('hour:' + job);
+
+
+
+
+}
+
+const hook = async (data = { "default": "default" }) => {
+
+
+  await saveLog('hook:' + data);
+
+
+
+}
+
+const reedirect = async (data = { "default": "default" }) => {
+
+
+  await saveLog('redirect:' + data);
+
+
+}
+
+const readyHTML = async (path = '') => {
+
+
+
+}
 
 const readHTML = async (file = 'file') => {
 
@@ -1019,9 +1887,13 @@ const readHTML = async (file = 'file') => {
   htmlString = fs.readFileSync(filePath, 'utf8');
   var textHTML = convert(htmlString, { wordwrap: 130 });
 
+
+
+
   //textHTML = await normalize(textHTML);
 
   return textHTML;
+
 
 }
 
@@ -1046,5 +1918,67 @@ const readTXT = async (file = 'file') => {
 }
 
 
+const sleep = async (ms) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
-module.exports = { requestDeepAI, requestOpenAI, web, input, loadFile, toHTML, classificationFile };
+const browser = async (params) => {
+
+  try {
+    // 1. Navigate to the URL
+
+    const session = await driver.getSession();
+    const sessionId = session.getId();
+    console.log('Session ID:', sessionId);
+
+    await driver.navigate().refresh();
+
+
+    await driver.get(params.url);
+
+    await driver.sleep(3000);
+
+
+
+    await driver.executeScript('return Array.prototype.slice.call(document.getElementsByTagName("script")).forEach( function(item) {  item.remove();});')
+
+    await driver.executeScript('return Array.prototype.slice.call(document.getElementsByTagName("style")).forEach( function(item) {  item.remove();});')
+
+    await driver.executeScript('function texto(){ allKids = document.querySelectorAll("a");  allKids.forEach((el)=>{ el.textContent = "*"+el.textContent+"*"; }); }; texto();');
+
+    await driver.executeScript('function parrafo(){ allPigs = document.querySelectorAll("p");  allPigs.forEach((ep)=>{ ep.textContent = "|"+ep.textContent+"|"; }); }; parrafo();');
+
+    let texto = await driver.executeScript('function onlytext(){ let fulltext=""; alltext = document.querySelectorAll("*"); alltext.forEach((al)=>{ if(al.textContent){ fulltext = al.textContent + fulltext; }}); return fulltext;} return onlytext();');
+
+
+
+
+    let filePath = `${__dirname}/public/`+params.file+`.txt`;
+
+
+    texto = texto.replaceAll('\n', '');
+
+    texto = texto.replaceAll('\t', '');
+
+    texto = texto.replaceAll(' ', '');
+
+    fs.writeFileSync(filePath, texto);
+
+    return texto;
+
+
+  } catch (error) {
+    console.error('Error extracting data:', error);
+  } finally {
+
+    await driver.quit();
+  }
+
+
+}
+
+
+
+module.exports = { codeBar, saveLog, hour, hook, reedirect, browser, requestDeepAI, requestOpenAI, web, inputWhatss, input, loadFile, loadCSV, toHTML, classificationFile }

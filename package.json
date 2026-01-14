@@ -39,7 +39,7 @@
     "jsdom": "^27.3.0",
     "langchain": "^1.1.1",
     "node-fetch": "^2.7.0",
-    "openai": "^4.91.1",
+    "openai": "^4.87.1",
     "path": "^0.12.7",
     "pdf-parse": "^1.1.1",
     "pdfreader": "^3.0.8",

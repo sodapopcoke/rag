@@ -1,0 +1,106 @@
+[
+
+    {
+      "node": 0,
+      "role": "assistant",
+      "content": "...",
+      "contrast": "envia un saludo para iniciar",
+      "input": [
+        { "variable": "saludo", "type": "greeting", "value": 1,"request":"default","node":[{"value":1,"node":1,"try_node":0}] }
+      ],
+      "try":3,
+      "type":"text"
+    },
+    {
+      "node": 1,
+      "role": "assistant",
+      "content": "😃 Bienvenido a tu tienda KOF ¿Qúe deseas realizar? \n 1️⃣.-Un pedido \n 2️⃣.-Registrarme ",
+      "contrast":"🫵 Solo acepto un numero correcto 🔢 y valido ✅",
+      "input": [
+        { "variable": "funciona", "type": "between_1_2", "value": 1,"request":"default","node": [{"value":1,"node":5,"try_node":1},{"value":2,"node":2,"try_node":1}] }
+      ],
+      "try":3,
+      "type":"text"
+    },   
+    {
+      "node": 2,
+      "role": "assistant",
+      "content": "😃 Empezemos con tu registro :\n Por favor escribe tu nombre completo tal como aparece en tu identificacion oficial 🪪 ",
+      "contrast": "☝ solo acepto un nombre completo ejemplo 'José López Pérez'",
+      "input": [
+         {"variable": "nombre", "type": "fullname", "value": "string","request":"default","node": [{"value":"string","node":3,"try_node":8}]}
+      ],
+      "type":"text",
+      "try":3
+    
+    },
+     {
+      "node": 3,
+      "role": "assistant",
+      "content": "👌 Perfecto. Por favor por ultimo,ingresa tu RFC para registrate.",
+      "contrast": "🫵 solo acepto el formato R.F.C. para continuar",
+      "input": [
+              {"variable": "rfc", "type": "rfc", "value": "string","request":"default", "node": [{"value":"string","node":5,"try_node":10}]}
+      ],
+      "try":3,
+      "type":"text"
+    },
+    {
+      "node": 4,
+      "role": "assistant",
+      "try":3,
+      "content": "🙌 Gracias por tu Registro.",
+      "input": [
+         {"variable": "dashboard", "type": "wait", "value": "si","request":"default","node": [{"value":"si","node":1,"try_node":16}]}
+      ],
+      "type":"text",
+      "contrast": "👋 hay solo te falta un pasito"
+    },
+    {
+      "node": 5,
+      "role": "assistant",
+      "content": "👌 ¿Que producto deseas agregar ➕ ? o buscas.👀 ",
+      "contrast": "🫵 envia un nombre de producto o descripcion",
+      "input": [
+              {"variable": "search", "type": "search", "value": 1,"request":"default","node": [{"value":1,"node":6,"try_node":5}]}
+      ],
+      "try":3,
+      "type":"text"
+   
+    },
+    {
+      "node": 6,
+      "role": "assistant",
+      "try":3,
+      "content": "✅ estos son los productos que tengo disponibles para ti",
+      "input": [
+         {"variable": "dashboard", "type": "ai", "value": "si","request":"default","node": [{"value":1,"node":7,"try_node":7}]}
+      ],
+      "type":"text",
+      "contrast": "👋  espera estamos generando el pedido"
+    },
+    {
+      "node": 7,
+      "role": "assistant",
+      "try":3,
+      "content": "✅ listo ya esta siendo generado tu pedido 📦",
+      "input": [
+         {"variable": "dashboard", "type": "any", "value": true,"request":"default","node": [{"value":1,"node":1,"try_node":16}]}
+      ],
+      "type":"text",
+      "contrast": "👋 solo espera un momento"
+    },
+    {
+      "node": 8,
+      "role": "assistant",
+      "content": "🙌 Gracias por tu pedido en kof. vuelve pronto",
+      "input": [
+         {"variable": "dashboard", "type": "any", "value": true,"request":"default","node": [{"value":"si","node":1,"try_node":9}]}
+      ],
+      "type":"text",
+      "try":3,
+      "contrast": "🥱 estamos esperando...."
+    }
+
+
+]
