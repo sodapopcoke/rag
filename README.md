@@ -70,7 +70,7 @@ Armando de Indices:
 
 
 
-  5.- se usa un json para el flujo de conversación
+  5.- se usa un json para el flujo de conversación, que usa la lógica de maquina de estados.
 
 
   [
@@ -179,6 +179,15 @@ Armando de Indices:
 
 
 ]
+
+
+6.- Por hacer : 
+
+  1.-Separar toda la configuracion en JSON, 
+  2.-Clasificar y comparar con el archivo CSV de productos
+  3.-Que el leector de Codigo de barras lea desde whatss para agregar un producto o compararlo y subir stock CSV
+  4.-Mejoraras del flujo - timer - auto respuesta si tarda mucho, webhook
+  5.- Probar en con Vibe Code para generar flujos
 
 
 
