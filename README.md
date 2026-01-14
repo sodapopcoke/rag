@@ -10,6 +10,8 @@ Armando de Indices:
 
 2.- Usando langchain se se generan los indices a partir de los archivos de clasificacion
 
+```
+
         const customSchema = {
     id: {
       type: SchemaFieldTypes.TEXT,
@@ -37,10 +39,13 @@ Armando de Indices:
     },
   };
 
+  ```
+
 3.- Se crea la herramienta (tool) usando los tags , categoria asociado al documento que tiene la informacion completa. 
 
 4.- Se clasifican los documentos con el siguiente prompt:
 
+```json
 [
     {
       "role": "system",
@@ -68,10 +73,12 @@ Armando de Indices:
 
   ];
 
-
+```
 
   5.- se usa un json para el flujo de conversación, que usa la lógica de maquina de estados.
 
+
+```json
 
   [
 
@@ -179,6 +186,8 @@ Armando de Indices:
 
 
 ]
+
+```
 
 
 6.- Por hacer : 
